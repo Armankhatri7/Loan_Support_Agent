@@ -12,7 +12,7 @@ from db import supabase_client as db
 
 
 # Ordered step sequence — used to determine the "next" step.
-STEP_SEQUENCE = ["greet", "loan_amount", "tranches", "emi", "bank", "completed"]
+STEP_SEQUENCE = ["greet", "loan_amount", "tranches", "emi", "bank", "health_check", "additional_queries", "completed"]
 
 # Allowed loan fields that can be updated by tools.
 ALLOWED_LOAN_FIELDS = {
@@ -243,9 +243,41 @@ def create_tools(loan_id: str, conversation_id: int, preferred_language: str = "
                 f"ग्राहक को सूचित करें कि सपोर्ट टीम उनसे संपर्क करेगी। कृपया विनम्रतापूर्वक वार्तालाप समाप्त करें।"
             )
 
+    @tool
+    def log_customer_feedback(feedback_type: str, description: str) -> str:
+        """Log customer feedback or a query for the support team without ending the conversation.
+
+        Call this tool when the customer reports an issue during the health check
+        or has additional queries that need support team attention.
+
+        Args:
+            feedback_type: Category of feedback — 'customer_feedback' for health
+                           check issues, 'additional_query' for follow-up queries.
+            description: A clear description of the customer's feedback or query.
+        """
+        feedback = db.create_feedback(
+            loan_id=loan_id,
+            conversation_id=conversation_id,
+            feedback_type=feedback_type,
+            description=description,
+        )
+
+        lang = (preferred_language or "hi").strip().lower()
+        if lang.startswith("en"):
+            return (
+                f"✅ Customer feedback logged successfully (#{feedback['id']}). "
+                f"The support team will review this. Continue the conversation flow."
+            )
+        else:
+            return (
+                f"✅ ग्राहक की प्रतिक्रिया सफलतापूर्वक दर्ज की गई है (#{feedback['id']})। "
+                f"सहायता टीम इसकी समीक्षा करेगी। वार्तालाप प्रवाह जारी रखें।"
+            )
+
     return [
         request_missing_loan_detail,
         save_loan_detail,
         confirm_step,
         escalate_to_support,
+        log_customer_feedback,
     ]

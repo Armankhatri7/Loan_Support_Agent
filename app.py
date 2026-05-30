@@ -184,6 +184,8 @@ STEP_LABELS = {
     "tranches": "📊 ट्रांच",
     "emi": "📅 EMI",
     "bank": "🏦 बैंक",
+    "health_check": "🩺 समीक्षा",
+    "additional_queries": "❓ प्रश्न",
     "completed": "✅ पूर्ण",
 }
 

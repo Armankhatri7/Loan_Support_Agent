@@ -234,6 +234,48 @@ def build_system_prompt(loan_data: dict, resume_context: dict | None = None, pre
                   f"• Ask: \"कृपया पुष्टि करें कि IFSC कोड {_safe_value(loan_data.get('ifsc_code'))} आपके बैंक खाते का सही कोड है?\"")
         )
 
+    # Health check step (language-aware)
+    health_check_step = (
+        ("• Ask the customer: \"Before we wrap up, did you face any issues or discrepancies during your loan process?\"\n"
+         "• If the customer reports any issues:\n"
+         "  - Apologize sincerely for the inconvenience.\n"
+         "  - Call `log_customer_feedback` with feedback_type=\"customer_feedback\" and a clear description of the issue.\n"
+         "  - Assure them that the matter has been raised to the support team and they will be contacted soon.\n"
+         "• If the customer has no issues:\n"
+         "  - Thank them warmly for their positive feedback.\n"
+         "• ✅ In both cases → call `confirm_step` with step_name=\"health_check\", then move to STEP 7.")
+        if use_english
+        else ("• Ask: \"बातचीत समाप्त करने से पहले, क्या आपको अपने लोन अनुभव के दौरान कोई समस्या या परेशानी हुई?\"\n"
+              "• If the customer reports any issues:\n"
+              "  - Apologize sincerely for the inconvenience.\n"
+              "  - Call `log_customer_feedback` with feedback_type=\"customer_feedback\" and a clear description of the issue.\n"
+              "  - Assure them that the matter has been raised to the support team.\n"
+              "• If the customer has no issues:\n"
+              "  - Thank them warmly for their positive feedback.\n"
+              "• ✅ In both cases → call `confirm_step` with step_name=\"health_check\", then move to STEP 7.")
+    )
+
+    # Additional queries step (language-aware)
+    additional_queries_step = (
+        ("• Ask: \"Do you have any other queries or concerns regarding your loan?\"\n"
+         "• If they have queries:\n"
+         "  - Acknowledge their query politely.\n"
+         "  - Call `log_customer_feedback` with feedback_type=\"additional_query\" and a description of the query.\n"
+         "  - Inform them: \"We have noted your query. Our support team will reach out to you soon.\"\n"
+         "• If they have no more queries:\n"
+         "  - Acknowledge positively.\n"
+         "• ✅ In both cases → call `confirm_step` with step_name=\"additional_queries\", then move to STEP 8.")
+        if use_english
+        else ("• Ask: \"क्या आपके लोन से संबंधित कोई और प्रश्न या चिंता है?\"\n"
+              "• If they have queries:\n"
+              "  - Acknowledge their query politely.\n"
+              "  - Call `log_customer_feedback` with feedback_type=\"additional_query\" and a description of the query.\n"
+              "  - Inform them that their query has been noted and the support team will contact them.\n"
+              "• If they have no more queries:\n"
+              "  - Acknowledge positively.\n"
+              "• ✅ In both cases → call `confirm_step` with step_name=\"additional_queries\", then move to STEP 8.")
+    )
+
     # Build the final prompt. The instructions are in English (for model reliability),
     # but the OUTPUT language rule forces the assistant reply language.
     prompt = f"""You are a loan support agent (लोन सहायक) for a financial services company.
@@ -323,7 +365,13 @@ You MUST follow these steps strictly in order. Do NOT skip steps.
 • ✅ If confirmed → call `confirm_step` with step_name="bank", then move to STEP 6.
 • ❌ If disputed → call `escalate_to_support` with issue_type="bank_mismatch".
 
-### STEP 6: CLOSING
+### STEP 6: HEALTH CHECK
+{health_check_step}
+
+### STEP 7: ADDITIONAL QUERIES
+{additional_queries_step}
+
+### STEP 8: CLOSING
 • Thank the customer warmly.
 • Give a brief 2-3 line summary of everything confirmed.
 • Wish them well and say goodbye.
@@ -375,7 +423,9 @@ then call `save_loan_detail` with field_name="tranches" and a valid JSON array.
             "tranches": 3,
             "emi": 4,
             "bank": 5,
-            "completed": 6,
+            "health_check": 6,
+            "additional_queries": 7,
+            "completed": 8,
         }
         resume_step = step_map.get(current, 1)
 

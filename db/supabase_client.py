@@ -119,3 +119,33 @@ def create_escalation(
     # Also mark the conversation as escalated
     mark_conversation_status(conversation_id, "escalated")
     return result.data[0]
+
+
+def create_feedback(
+    loan_id: str,
+    conversation_id: int,
+    feedback_type: str,
+    description: str,
+) -> dict:
+    """Insert a feedback record into escalations WITHOUT changing conversation status.
+
+    Used for health check issues and additional queries — logs the concern
+    but allows the conversation flow to continue.
+    """
+    client = get_client()
+    result = (
+        client.table("escalations")
+        .insert(
+            {
+                "loan_id": loan_id,
+                "conversation_id": conversation_id,
+                "issue_type": "other",
+                "description": f"[{feedback_type}] {description}",
+                "user_claim": "",
+                "system_value": "",
+                "status": "open",
+            }
+        )
+        .execute()
+    )
+    return result.data[0]
